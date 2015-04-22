@@ -1,0 +1,6 @@
+COMPONENT=FireDetectionAppC
+
+include $(MAKERULES)
+
+
+
