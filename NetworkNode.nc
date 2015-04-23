@@ -1,6 +1,6 @@
 
 
-interface SensorNode{
+interface NetworkNode {
 
 	//implemented by the node
 	command void getReading();

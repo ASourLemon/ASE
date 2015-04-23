@@ -2,8 +2,7 @@
 #define FIREDETECTION_H
 
 #include <Timer.h>
-#include "SensorNode.h"
-#include "RoutingNode.h"
+#include "NetworkNode.h"
  
 enum {
 	AM_BLINKTORADIO = 6,

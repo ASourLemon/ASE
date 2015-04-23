@@ -15,8 +15,7 @@ implementation {
 	components new AMReceiverC(AM_BLINKTORADIO);
 
 	//logic
-	components SensorNodeP;
-	components RoutingNodeP;
+	components NetworkNodeP;
 	
 	App.Boot -> MainC;
 	App.Timer0 -> Timer0;
@@ -27,6 +26,5 @@ implementation {
 	App.AMControl -> ActiveMessageC;
 	App.Receive -> AMReceiverC;
 
-	App.SensorNode -> SensorNodeP;
-	App.RoutingNode ->RoutingNodeP;
+	App.NetworkNode -> NetworkNodeP;
 }

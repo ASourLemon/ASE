@@ -13,8 +13,7 @@ module FireDetectionC {
 	uses interface Receive; 					//receive packets
 
 	//logic
-	uses interface SensorNode;
-	uses interface RoutingNode;
+	uses interface NetworkNode;
 
 }
 implementation {
@@ -37,7 +36,7 @@ implementation {
 			//if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(BlinkToRadioMsg)) == SUCCESS) {
 			//	busy = TRUE;
 			//}	
-			call SensorNode.getReading();
+			call NetworkNode.getReading();
 		}
 	}
 
@@ -67,7 +66,7 @@ implementation {
 		return msg;
 	}
 
-	event void SensorNode.readingDone(error_t err, uint16_t sensorReading, uint16_t sensorID){
+	event void NetworkNode.readingDone(error_t err, uint16_t sensorReading, uint16_t sensorID){
 		if(err==SUCCESS){
 			dbg("Counter", "Received reading %d from sensor %d", sensorReading, sensorID);			
 		}
