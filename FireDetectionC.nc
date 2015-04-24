@@ -14,6 +14,10 @@ module FireDetectionC {
 
 	//logic
 	uses interface NetworkNode;
+	uses interface Gps;
+	uses interface TemperatureSensor;
+	uses interface SmokeSensor;
+	uses interface HumiditySensor;
 
 }
 implementation {
@@ -30,13 +34,17 @@ implementation {
 		dbg("Counter", "Event!\n");
 		counter++;
 		if (!busy) {
-			//BlinkToRadioMsg* btrpkt = (BlinkToRadioMsg*)(call Packet.getPayload(&pkt, sizeof (BlinkToRadioMsg)));
+			//RoutingMsg* btrpkt = (RoutingMsg*)(call Packet.getPayload(&pkt, sizeof (RoutingMsg)));
 			//btrpkt->nodeid = TOS_NODE_ID;
 			//btrpkt->counter = counter;
-			//if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(BlinkToRadioMsg)) == SUCCESS) {
+			//if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(RoutingMsg)) == SUCCESS) {
 			//	busy = TRUE;
 			//}	
 			call NetworkNode.getReading();
+			call Gps.getGpsCoordinates(TOS_NODE_ID);
+			call TemperatureSensor.getReading();
+			call SmokeSensor.getReading();
+			call HumiditySensor.getReading();
 		}
 	}
 
@@ -68,9 +76,32 @@ implementation {
 
 	event void NetworkNode.readingDone(error_t err, uint16_t sensorReading, uint16_t sensorID){
 		if(err==SUCCESS){
-			dbg("Counter", "Received reading %d from sensor %d", sensorReading, sensorID);			
+			dbg("Counter", "Received reading %d from sensor %d\n", sensorReading, sensorID);			
 		}
+	}
 
+	event void HumiditySensor.doneReading(error_t err, uint16_t humidityValue){
+		if(err==SUCCESS){
+			dbg("Counter", "Received reading %d from humidity sensor\n", humidityValue);			
+		}
+	}
+
+	event void TemperatureSensor.doneReading(error_t err, uint16_t temperatureValue){
+		if(err==SUCCESS){
+			dbg("Counter", "Received reading %d from temperature sensor\n", temperatureValue);			
+		}
+	}
+
+	event void SmokeSensor.doneReading(error_t err, uint16_t smokeValue){
+		if(err==SUCCESS){
+			dbg("Counter", "Received reading %d from smoke sensor\n", smokeValue);			
+		}
+	}
+
+	event void Gps.receiveCoordinates(error_t err, uint16_t x, uint16_t y){
+		if(err==SUCCESS){
+			dbg("Counter", "Received gps coordinates: %d : %d\n", x, y);
+		}		
 	}
 
 }

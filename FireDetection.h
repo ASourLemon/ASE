@@ -3,6 +3,11 @@
 
 #include <Timer.h>
 #include "NetworkNode.h"
+#include "Gps.h"
+#include "TemperatureSensor.h"
+#include "SmokeSensor.h"
+#include "HumiditySensor.h"
+
  
 enum {
 	AM_BLINKTORADIO = 6,
