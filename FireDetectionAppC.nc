@@ -18,8 +18,7 @@ implementation {
 	components HumiditySensorP;
 	components SmokeSensorP;
 	components TemperatureSensorP;
-	components NetworkNodeP;
-	components GpsP;
+	components GpsSensorP;
 
 	//***************//
 	//basic
@@ -37,6 +36,5 @@ implementation {
 	App.HumiditySensor -> HumiditySensorP;
 	App.SmokeSensor -> SmokeSensorP;
 	App.TemperatureSensor -> TemperatureSensorP;
-	App.NetworkNode -> NetworkNodeP;
-	App.Gps -> GpsP;
+	App.GpsSensor -> GpsSensorP;
 }
