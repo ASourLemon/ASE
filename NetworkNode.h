@@ -11,7 +11,7 @@
 #define MAX_SENSOR_NODES 100
 
 enum {
-	SENSORNODE_PERIOD_MILLI = 10	
+	SENSORNODE_PERIOD_MILLI = 1	
 };
  
 #endif

@@ -22,12 +22,17 @@ module FireDetectionC {
 implementation {
 	/*for all nodes*/
 	bool isBusy = FALSE;
+	bool isConnected = FALSE;
+	bool isWaitingAck = FALSE;
 	message_t pkt; 
-	uint16_t x_coordinate;
-	uint16_t y_coordinate;
+
 
 
 	/*for sensor nodes*/
+	bool isRegistred = FALSE;
+	uint16_t x_coordinate;
+	uint16_t y_coordinate;
+	uint16_t myRoutingNode;		
 	uint16_t timeStamp=0;
 	uint16_t readTemperatureValue;
 	uint16_t readHumidityValue;
@@ -35,8 +40,7 @@ implementation {
 
 	/*for routing nodes*/
 	uint16_t numSensorNodes = 0;
-	uint16_t messageNumber[100][2];
-	
+	uint8_t	myRank=0;
 
 	event void Boot.booted() {
 		call AMControl.start();
@@ -45,22 +49,60 @@ implementation {
 	event void Timer0.fired() {
 		if (!isBusy) {
 			if(IS_SENSORNODE(TOS_NODE_ID)){
-				RoutingMsg* btrpkt = (RoutingMsg*)(call Packet.getPayload(&pkt, sizeof (RoutingMsg)));
+				if(isConnected){
+					NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+					if(isRegistred){
+						call TemperatureSensor.getReading();
+						call SmokeSensor.getReading();
+						call HumiditySensor.getReading();
+						btrpkt->opcode = ROUTE_OPCODE;
+						btrpkt->nodeid = TOS_NODE_ID;
+						btrpkt->rank = FORCE_ROOT_RANK;
+						btrpkt->humidityValue = readHumidityValue;
+						btrpkt->smokeValue = readSmokeValue;
+						btrpkt->temperatureValue = readTemperatureValue;
+						btrpkt->measureTime = timeStamp;
+						timeStamp++;	
 
-				call TemperatureSensor.getReading();
-				call SmokeSensor.getReading();
-				call HumiditySensor.getReading();
+					}else{
+						call GpsSensor.getGpsCoordinates(TOS_NODE_ID);
+						btrpkt->opcode = REGISTER_GPS_OPCODE;
+						btrpkt->nodeid = TOS_NODE_ID;
+						btrpkt->rank = FORCE_ROOT_RANK;
+						btrpkt->x_gps_coordinate = x_coordinate;
+						btrpkt->y_gps_coordinate = y_coordinate;
+						isRegistred = TRUE; //FIXME: NEED ACKS FOR THIS OPERATION!
+					}
+					if (call AMSend.send(myRoutingNode, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
+						isBusy = TRUE;
+					}
 
-				btrpkt->nodeid = TOS_NODE_ID;
-				btrpkt->humidityValue = readHumidityValue;
-				btrpkt->smokeValue = readSmokeValue;
-				btrpkt->temperatureValue = readTemperatureValue;
-				btrpkt->measureTime = timeStamp;
-				//timeStamp++;
-				if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(RoutingMsg)) == SUCCESS) {
-					isBusy = TRUE;
+				}else {
+					NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+					btrpkt->opcode = DISCOVER_OPCODE;
+					btrpkt->nodeid = TOS_NODE_ID;
+					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
+						isBusy = TRUE;
+					}	
+				}
+			}else if(IS_ROUTINGNODE(TOS_NODE_ID)){
+				if(isConnected){
+
+				}else {
+					NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+					btrpkt->opcode = DISCOVER_OPCODE;
+					btrpkt->nodeid = TOS_NODE_ID;
+					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
+						isBusy = TRUE;
+					}	
 				}	
+
+
+
 			}
+
+
+
 
 		}
 	}
@@ -73,6 +115,11 @@ implementation {
 
 	event void AMControl.startDone(error_t err) {
 		if (err == SUCCESS) {
+
+			if(IS_SERVERNODE(TOS_NODE_ID)){
+				isConnected=TRUE;
+			}
+
 			call Timer0.startPeriodic(SENSORNODE_PERIOD_MILLI);
 		}
 		else {
@@ -84,39 +131,111 @@ implementation {
 	}
 
 	event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
-		if (len == sizeof(RoutingMsg)) {
-			if(IS_ROUTINGNODE(TOS_NODE_ID)){
-				RoutingMsg* btrpkt = (RoutingMsg*)payload;
-				uint16_t i;
-				bool found=FALSE;
-				for(i=0;i<numSensorNodes;i++){
-					if(messageNumber[i][0]==btrpkt->nodeid){
-						found=TRUE;
-						if(messageNumber[i][1]<btrpkt->measureTime){
-							messageNumber[i][1]=btrpkt->measureTime;
-							if (call AMSend.send(AM_BROADCAST_ADDR, msg, sizeof(RoutingMsg)) == SUCCESS) {
-								dbg("Debug", "Routed msg %d from %d\n", btrpkt->measureTime, btrpkt->nodeid);	
+		NetworkMsg* btrpkt = (NetworkMsg*)payload;
+
+		if (len == sizeof(NetworkMsg)) {		//FIXME: Msg size
+			if(IS_SENSORNODE(TOS_NODE_ID)){
+				if(isConnected){
+
+					/* check if target routing node broadcasts 
+					 * 				if not -> isConnected=FALSE (start discover)
+					 */
+
+					if(isWaitingAck){
+						isWaitingAck=FALSE;
+
+					}
+					
+
+
+				}else {
+					if(btrpkt->opcode==DISCOVER_OPCODE && btrpkt->nodeid==TOS_NODE_ID){
+						myRoutingNode=btrpkt->routingid;
+						isConnected=TRUE;	
+					}
+				}
+			}else if(IS_ROUTINGNODE(TOS_NODE_ID)){
+				if(isConnected){
+					if(btrpkt->opcode==ROUTE_OPCODE){
+						if(btrpkt->rank>myRank || btrpkt->rank==FORCE_ROOT_RANK){
+							NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+							res->opcode = btrpkt->opcode;
+							res->nodeid = btrpkt->nodeid;
+							res->rank = myRank;
+							res->humidityValue = btrpkt->humidityValue;
+							res->smokeValue = btrpkt->smokeValue;
+							res->temperatureValue = btrpkt->temperatureValue;
+							res->measureTime = btrpkt->measureTime;
+							if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+								isBusy = TRUE;
+								//dbg("Debug", "%d, rank %d bcasted  %d from sensor %d\n", TOS_NODE_ID, myRank, btrpkt->measureTime,  btrpkt->nodeid);	
+							}						
+						}else {
+						
+						}
+					}else if(btrpkt->opcode==DISCOVER_OPCODE){
+						if(btrpkt->nodeid!=TOS_NODE_ID){
+							NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+							res->opcode = btrpkt->opcode;
+							res->nodeid = btrpkt->nodeid;
+							res->rank = myRank;
+							if(IS_SENSORNODE(btrpkt->nodeid)){
+								res->routingid = TOS_NODE_ID;
+							}else if(IS_ROUTINGNODE(btrpkt->nodeid)){
+								res->rank = myRank+1;
+							}
+							if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 								isBusy = TRUE;
 							}
 						}else {
-							dbg("Debug", "Discarded msg %d from %d\n", btrpkt->measureTime, btrpkt->nodeid);
+							if(myRank>btrpkt->rank){
+								myRank=btrpkt->rank;
+							}
 						}
-						
+					}else if(btrpkt->opcode==REGISTER_GPS_OPCODE){
+						NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+						res->opcode = btrpkt->opcode;
+						res->nodeid = btrpkt->nodeid;
+						res->x_gps_coordinate = btrpkt->x_gps_coordinate;
+						res->y_gps_coordinate = btrpkt->y_gps_coordinate;
+						if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+							isBusy = TRUE;
+						}
+					}
+
+				}else {
+					if(btrpkt->opcode==DISCOVER_OPCODE && btrpkt->nodeid==TOS_NODE_ID){
+						myRank=btrpkt->rank;
+						isConnected=TRUE;
 					}
 				}
-				
-				if(!found){
-					messageNumber[numSensorNodes][0]=btrpkt->nodeid;
-					messageNumber[numSensorNodes][1]=btrpkt->measureTime;
-					numSensorNodes++;
-					if (call AMSend.send(AM_BROADCAST_ADDR, msg, sizeof(RoutingMsg)) == SUCCESS) {
-						dbg("Debug", "Routed msg %d from %d and registered\n", btrpkt->measureTime, btrpkt->nodeid);	
-						isBusy = TRUE;
-					}
-				}
+
+
 			}else if(IS_SERVERNODE(TOS_NODE_ID)){
-					RoutingMsg* btrpkt = (RoutingMsg*)payload;
+				if(btrpkt->opcode==ROUTE_OPCODE){
 					dbg("Debug", "Received reading %d from sensor %d\n", btrpkt->measureTime,  btrpkt->nodeid);	
+
+				}else if(btrpkt->opcode==REGISTER_GPS_OPCODE){
+					dbg("Debug", "Received gps reg x:%d y:%d from sensor %d\n", btrpkt->x_gps_coordinate, btrpkt->y_gps_coordinate, btrpkt->nodeid);
+	
+				}else if(btrpkt->opcode==DISCOVER_OPCODE){
+
+					NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+					res->opcode = btrpkt->opcode;
+					res->nodeid = btrpkt->nodeid;
+
+					if(IS_SENSORNODE(btrpkt->nodeid)){
+						res->routingid = TOS_NODE_ID;
+					}else if(IS_ROUTINGNODE(btrpkt->nodeid)){
+						res->rank = myRank+1;
+					}
+
+					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+						isBusy = TRUE;
+					}	
+				}
+
+
 			}
 		}
 		return msg;

@@ -40,19 +40,19 @@ t.addChannel("Debug", sys.stdout)
 
 
 print "[Py] Booting nodes..."
-t.getNode(0).bootAtTime(10000);
+t.getNode(0).bootAtTime(1);
 
-t.getNode(1).bootAtTime(100001);
-t.getNode(2).bootAtTime(800008);
-t.getNode(3).bootAtTime(1800009);
+t.getNode(1).bootAtTime(1);
+t.getNode(2).bootAtTime(2);
+t.getNode(3).bootAtTime(3);
 
-t.getNode(100).bootAtTime(100001);
-t.getNode(101).bootAtTime(800008);
-t.getNode(102).bootAtTime(1800009);
+t.getNode(100).bootAtTime(6000001);
+t.getNode(101).bootAtTime(6000002);
+t.getNode(102).bootAtTime(6000003);
 
 
 print "[Py] Running events..."
-for i in range(1000):
+for i in range(10000):
 	t.runNextEvent()
 
 print "[Py] Done!"
