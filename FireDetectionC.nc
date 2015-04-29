@@ -42,6 +42,8 @@ implementation {
 	/*for routing nodes*/
 	uint16_t numSensorNodes = 0;
 	uint8_t	myRank=0;
+	
+	
 
 	event void Boot.booted() {
 		call AMControl.start();
@@ -97,6 +99,7 @@ implementation {
 					}
 				}else {
 					NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+					dbg("Debug", "Sending discovery!\n");	
 					btrpkt->opcode = DISCOVER_OPCODE;
 					btrpkt->nodeid = TOS_NODE_ID;
 					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
@@ -145,20 +148,25 @@ implementation {
 
 	event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
 		NetworkMsg* btrpkt = (NetworkMsg*)payload;
-
+		dbg("Debug", "Got message from %d, opcode:%d\n", call AMPacket.source(msg), btrpkt->opcode);	
 		if (len == sizeof(NetworkMsg)) {		//FIXME: Msg size
 			if(IS_SENSORNODE(TOS_NODE_ID)){
 				if(isConnected){
+					dbg("Debug", "Got something. opcode:%d nodeid:%d \n", btrpkt->opcode, btrpkt->nodeid);	
 					if(isWaitingAck){
 						if(myRoutingNode == call AMPacket.source(msg)){
 							call Timer1.stop();
 							isWaitingAck=FALSE;
+							dbg("Debug", "Stoped timer\n");	
+						}else{
+							dbg("Debug", "Discarded\n");	
 						}
 					}
 				}else {
 					if(btrpkt->opcode==DISCOVER_OPCODE && btrpkt->nodeid==TOS_NODE_ID){
 						myRoutingNode = call AMPacket.source(msg);
 						isConnected=TRUE;	
+						dbg("Debug", "I'm connected to node %d\n", myRoutingNode);	
 					}
 				}
 			}else if(IS_ROUTINGNODE(TOS_NODE_ID)){
@@ -181,14 +189,16 @@ implementation {
 								res->smokeValue = btrpkt->smokeValue;
 								res->temperatureValue = btrpkt->temperatureValue;
 								res->measureTime = btrpkt->measureTime;
+								dbg("Debug", "Routed msg from %d\n", call AMPacket.source(msg));	
 								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 									isBusy = TRUE;
-									isWaitingAck = TRUE;
-			dbg("Debug", "Routed\n");
+									if(myRank!=1){
+										isWaitingAck = TRUE;
+									}
 									call Timer1.startPeriodic(FAILURE_TIMEOUT_MILLI);
 								}						
 							}else {
-						
+								dbg("Debug", "Discarded msg from %d\n", call AMPacket.source(msg));	
 							}
 						}else if(btrpkt->opcode==DISCOVER_OPCODE){
 							if(btrpkt->nodeid!=TOS_NODE_ID){
@@ -202,7 +212,7 @@ implementation {
 									res->rank = myRank+1;
 									myRoutingNode = call AMPacket.source(msg);
 								}
-								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+								if (call AMSend.send(call AMPacket.source(msg), &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 									isBusy = TRUE;
 								}
 							}else {

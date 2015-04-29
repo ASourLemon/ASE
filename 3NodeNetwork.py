@@ -46,17 +46,25 @@ t.getNode(1).bootAtTime(1);
 t.getNode(2).bootAtTime(2);
 t.getNode(3).bootAtTime(3);
 
-t.getNode(100).bootAtTime(6000001);
+#t.getNode(100).bootAtTime(6000001);
 t.getNode(101).bootAtTime(6000002);
-t.getNode(102).bootAtTime(6000003);
+#t.getNode(102).bootAtTime(6000003);
 
 
 print "[Py] Running events..."
-for i in range(10000):
-	if i==4500:
-		#t.getNode(2).turnOff();
-		print ("2 is off")
+for i in range(60000):
+	if i==25000:
+		t.getNode(1).turnOff();
+		print ("1 is off")
 
 	t.runNextEvent()
 
+
+#while True:
+#	cmd = raw_input('[Py]>');
+#	if cmd == 'exit':
+#		break
+#	exec cmd
+	
+	
 print "[Py] Done!"
