@@ -170,8 +170,8 @@ implementation {
 					}
 				}
 			}else if(IS_ROUTINGNODE(TOS_NODE_ID)){
+			
 				if(isConnected){
-
 					if(isWaitingAck){
 						if(myRank>btrpkt->rank){
 							call Timer1.stop();
