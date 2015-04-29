@@ -10,6 +10,7 @@ implementation {
 	
 	//comunication
 	components new TimerMilliC() as Timer0;
+	components new TimerMilliC() as Timer1;
 	components ActiveMessageC;
 	components new AMSenderC(AM_BLINKTORADIO);
 	components new AMReceiverC(AM_BLINKTORADIO);
@@ -24,6 +25,7 @@ implementation {
 	//basic
 	App.Boot -> MainC;
 	App.Timer0 -> Timer0;
+	App.Timer1 -> Timer1;
 
 	//comunication
 	App.Packet -> AMSenderC;

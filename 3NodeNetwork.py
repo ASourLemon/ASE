@@ -53,6 +53,10 @@ t.getNode(102).bootAtTime(6000003);
 
 print "[Py] Running events..."
 for i in range(10000):
+	if i==4500:
+		#t.getNode(2).turnOff();
+		print ("2 is off")
+
 	t.runNextEvent()
 
 print "[Py] Done!"
