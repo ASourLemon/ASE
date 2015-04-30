@@ -22,12 +22,13 @@ module FireDetectionC {
 }
 implementation {
 	/*for all nodes*/
-	bool isBusy = FALSE;
-	bool isConnected = FALSE;
-	bool isWaitingAck = FALSE;
+	bool isBusy=FALSE;
+	bool isConnected=FALSE;
+	bool isWaitingAck=FALSE;
+	bool isEmergent=FALSE;
+	bool forcedSend=FALSE;
 	message_t pkt; 
-
-
+	message_t emergertMsg;
 
 	/*for sensor nodes*/
 	bool isRegistred = FALSE;
@@ -37,10 +38,10 @@ implementation {
 	uint16_t timeStamp=0;
 	uint16_t readTemperatureValue;
 	uint16_t readHumidityValue;
-	uint16_t readSmokeValue;
+	bool readSmokeValue;
 
 	/*for routing nodes*/
-	uint16_t numSensorNodes = 0;
+	uint16_t numSensorNodes=0;
 	uint8_t	myRank=0;
 	
 	
@@ -51,11 +52,24 @@ implementation {
 	
 	event void Timer1.fired(){
 		if(!IS_SERVERNODE(TOS_NODE_ID)){
-			if(isWaitingAck){
-				//timeout!
-				dbg("Debug", "Something nasty happend, i'm broadcasting discovry again!\n");
-				isConnected = FALSE;
-				isWaitingAck = FALSE;
+			if(!isEmergent){
+				if(isWaitingAck){
+					//timeout!
+					dbg("Debug", "Something nasty happend, i'm broadcasting discovry again!\n");
+					isConnected = FALSE;
+					isWaitingAck = FALSE;
+				}
+			}else {
+				NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&emergertMsg, sizeof (NetworkMsg)));
+				dbg("Debug", "Force transmitting emergency msg!\n");
+				btrpkt->rank=FORCE_ROOT_RANK;
+				if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+					isBusy=TRUE;
+					if(myRank!=1){
+						isWaitingAck=TRUE;
+						forcedSend=TRUE;
+					}
+				}	
 			}
 		}
 	}
@@ -66,11 +80,16 @@ implementation {
 				if(isConnected){
 					if(!isWaitingAck){
 						NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
-						if(TRUE){
+						if(isRegistred){
+							dbg("Debug", "Send rmsg\n");	
 							call TemperatureSensor.getReading();
 							call SmokeSensor.getReading();
 							call HumiditySensor.getReading();
-							btrpkt->opcode = ROUTE_OPCODE;
+							if(readSmokeValue){
+								btrpkt->opcode = EMERGENCY_OPCODE;			
+							}else {
+								btrpkt->opcode = ROUTE_OPCODE;
+							}
 							btrpkt->nodeid = TOS_NODE_ID;
 							btrpkt->rank = FORCE_ROOT_RANK;
 							btrpkt->humidityValue = readHumidityValue;
@@ -78,7 +97,6 @@ implementation {
 							btrpkt->temperatureValue = readTemperatureValue;
 							btrpkt->measureTime = timeStamp;
 							timeStamp++;	
-
 						}else{
 							call GpsSensor.getGpsCoordinates(TOS_NODE_ID);
 							btrpkt->opcode = REGISTER_GPS_OPCODE;
@@ -86,12 +104,10 @@ implementation {
 							btrpkt->rank = FORCE_ROOT_RANK;
 							btrpkt->x_gps_coordinate = x_coordinate;
 							btrpkt->y_gps_coordinate = y_coordinate;
-							isRegistred = TRUE; //FIXME: NEED ACKS FOR THIS OPERATION!
 						}
 						if (call AMSend.send(myRoutingNode, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
 							isBusy = TRUE;
 							isWaitingAck = TRUE;
-							call Timer1.startPeriodic(FAILURE_TIMEOUT_MILLI);
 						}
 					}else {
 						//do nothing
@@ -108,9 +124,12 @@ implementation {
 				}
 			}else if(IS_ROUTINGNODE(TOS_NODE_ID)){
 				if(isConnected){
-					//do nothing, just receive messages
+	
+
+
 				}else {
 					NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+					dbg("Debug", "OMG halp me!\n");	
 					btrpkt->opcode = DISCOVER_OPCODE;
 					btrpkt->nodeid = TOS_NODE_ID;
 					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
@@ -123,7 +142,10 @@ implementation {
 
 	event void AMSend.sendDone(message_t* msg, error_t error) {
 		if (&pkt == msg) {
-			isBusy = FALSE;
+			if(myRank!=1){
+				isBusy = FALSE;
+				call Timer1.startPeriodic(FAILURE_TIMEOUT_MILLI);
+			}
 		}
 	}
 
@@ -132,10 +154,7 @@ implementation {
 
 			if(IS_SERVERNODE(TOS_NODE_ID)){
 				isConnected=TRUE;
-			}else {
-				//call Timer1.startPeriodic(FAILURE_TIMEOUT_MILLI);
 			}
-
 			call Timer0.startPeriodic(SENSORNODE_PERIOD_MILLI);
 		}
 		else {
@@ -148,18 +167,22 @@ implementation {
 
 	event message_t* Receive.receive(message_t* msg, void* payload, uint8_t len) {
 		NetworkMsg* btrpkt = (NetworkMsg*)payload;
-		dbg("Debug", "Got message from %d, opcode:%d\n", call AMPacket.source(msg), btrpkt->opcode);	
+		//dbg("Debug", "Got message from %d, opcode:%d\n", call AMPacket.source(msg), btrpkt->opcode);	
 		if (len == sizeof(NetworkMsg)) {		//FIXME: Msg size
 			if(IS_SENSORNODE(TOS_NODE_ID)){
 				if(isConnected){
 					dbg("Debug", "Got something. opcode:%d nodeid:%d \n", btrpkt->opcode, btrpkt->nodeid);	
 					if(isWaitingAck){
-						if(myRoutingNode == call AMPacket.source(msg)){
+						if(isRegistred){
+							if(myRoutingNode == call AMPacket.source(msg)){
+								call Timer1.stop();
+								isWaitingAck=FALSE;
+							}
+						}else if(btrpkt->opcode==REGISTER_GPS_OPCODE && btrpkt->nodeid==TOS_NODE_ID) {
+							dbg("Debug", "Got reg ack.\n");	
 							call Timer1.stop();
 							isWaitingAck=FALSE;
-							dbg("Debug", "Stoped timer\n");	
-						}else{
-							dbg("Debug", "Discarded\n");	
+							isRegistred=TRUE;
 						}
 					}
 				}else {
@@ -170,16 +193,19 @@ implementation {
 					}
 				}
 			}else if(IS_ROUTINGNODE(TOS_NODE_ID)){
-			
 				if(isConnected){
 					if(isWaitingAck){
-						if(myRank>btrpkt->rank){
+						if(forcedSend){
+							forcedSend=FALSE;
+							isEmergent=FALSE;
+							isConnected=FALSE;
+							isWaitingAck=FALSE;
+						}else if(myRank>btrpkt->rank){
 							call Timer1.stop();
 							isWaitingAck=FALSE;
 						}
 					}else {
-
-						if(btrpkt->opcode==ROUTE_OPCODE){
+						if(btrpkt->opcode==EMERGENCY_OPCODE){
 							if(btrpkt->rank>myRank || btrpkt->rank==FORCE_ROOT_RANK){
 								NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
 								res->opcode = btrpkt->opcode;
@@ -189,16 +215,31 @@ implementation {
 								res->smokeValue = btrpkt->smokeValue;
 								res->temperatureValue = btrpkt->temperatureValue;
 								res->measureTime = btrpkt->measureTime;
-								dbg("Debug", "Routed msg from %d\n", call AMPacket.source(msg));	
+								emergertMsg=pkt;
+								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+									isBusy = TRUE;
+									if(myRank!=1){
+										isWaitingAck=TRUE;
+										isEmergent=TRUE;
+									}
+								}
+							}						
+						}else if(btrpkt->opcode==ROUTE_OPCODE){
+							if(btrpkt->rank>myRank || btrpkt->rank==FORCE_ROOT_RANK){
+								NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+								res->opcode = btrpkt->opcode;
+								res->nodeid = btrpkt->nodeid;
+								res->rank = myRank;
+								res->humidityValue = btrpkt->humidityValue;
+								res->smokeValue = btrpkt->smokeValue;
+								res->temperatureValue = btrpkt->temperatureValue;
+								res->measureTime = btrpkt->measureTime;
 								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 									isBusy = TRUE;
 									if(myRank!=1){
 										isWaitingAck = TRUE;
 									}
-									call Timer1.startPeriodic(FAILURE_TIMEOUT_MILLI);
 								}						
-							}else {
-								dbg("Debug", "Discarded msg from %d\n", call AMPacket.source(msg));	
 							}
 						}else if(btrpkt->opcode==DISCOVER_OPCODE){
 							if(btrpkt->nodeid!=TOS_NODE_ID){
@@ -219,16 +260,20 @@ implementation {
 								if(myRank>btrpkt->rank){
 									myRank=btrpkt->rank;
 									myRoutingNode = call AMPacket.source(msg);
+									dbg("Debug", "Changed rank:%d \n", myRank);	
 								}
 							}
 						}else if(btrpkt->opcode==REGISTER_GPS_OPCODE){
-							NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
-							res->opcode = btrpkt->opcode;
-							res->nodeid = btrpkt->nodeid;
-							res->x_gps_coordinate = btrpkt->x_gps_coordinate;
-							res->y_gps_coordinate = btrpkt->y_gps_coordinate;
-							if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
-								isBusy = TRUE;
+							if(btrpkt->rank>myRank || btrpkt->rank==FORCE_ROOT_RANK){
+								NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
+								res->opcode = btrpkt->opcode;
+								res->nodeid = btrpkt->nodeid;
+								res->rank = myRank;
+								res->x_gps_coordinate = btrpkt->x_gps_coordinate;
+								res->y_gps_coordinate = btrpkt->y_gps_coordinate;
+								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+									isBusy = TRUE;
+								}
 							}
 						}
 
@@ -240,6 +285,7 @@ implementation {
 					if(btrpkt->opcode==DISCOVER_OPCODE && btrpkt->nodeid==TOS_NODE_ID){
 						myRank=btrpkt->rank;
 						isConnected=TRUE;
+						dbg("Debug", "Connected rank:%d \n", myRank);	
 					}
 				}
 
@@ -250,7 +296,10 @@ implementation {
 
 				}else if(btrpkt->opcode==REGISTER_GPS_OPCODE){
 					dbg("Debug", "Received gps reg x:%d y:%d from sensor %d\n", btrpkt->x_gps_coordinate, btrpkt->y_gps_coordinate, btrpkt->nodeid);
-	
+				
+				}else if(btrpkt->opcode==EMERGENCY_OPCODE){
+					dbg("Debug", "Received smoke %d from sensor %d\n", btrpkt->measureTime,  btrpkt->nodeid);	
+
 				}else if(btrpkt->opcode==DISCOVER_OPCODE){
 
 					NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
@@ -263,7 +312,7 @@ implementation {
 						res->rank = myRank+1;
 					}
 
-					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
+					if (call AMSend.send(call AMPacket.source(msg), &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 						isBusy = TRUE;
 					}	
 				}
@@ -287,7 +336,7 @@ implementation {
 		}
 	}
 
-	event void SmokeSensor.doneReading(error_t err, uint16_t smokeValue){
+	event void SmokeSensor.doneReading(error_t err, bool smokeValue){
 		if(err==SUCCESS){
 			readSmokeValue=smokeValue;	
 		}

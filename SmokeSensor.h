@@ -1,13 +1,10 @@
 #ifndef SMOKESENSOR_H
 #define SMOKESENSOR_H
 
-
-
-/*enum FIELD_DIMENSIONS{
+enum {
 		
-	WIDTH = 1000,
-	HEIGHT = 1000
+	SMOKE_PROBABILITY = 20 //%
 
-};*/
+};
  
 #endif

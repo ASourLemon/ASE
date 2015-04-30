@@ -19,9 +19,9 @@ for line in noise:
   str1 = line.strip()
   if str1:
     val = int(str1)
-    for i in range(0, 4):
+    for i in range(0, 5):
       t.getNode(i).addNoiseTraceReading(val)
-for i in range(0, 4):
+for i in range(0, 5):
   t.getNode(i).createNoiseModel()
 noise = open("meyer-heavy.txt", "r")
 for line in noise:
@@ -42,20 +42,23 @@ t.addChannel("Debug", sys.stdout)
 print "[Py] Booting nodes..."
 t.getNode(0).bootAtTime(1);
 
-t.getNode(1).bootAtTime(1);
-t.getNode(2).bootAtTime(2);
-t.getNode(3).bootAtTime(3);
+t.getNode(1).bootAtTime(900);
+t.getNode(2).bootAtTime(800);
+t.getNode(3).bootAtTime(100);
+t.getNode(4).bootAtTime(200);
 
-#t.getNode(100).bootAtTime(6000001);
-t.getNode(101).bootAtTime(6000002);
+t.getNode(100).bootAtTime(6000001);
+#t.getNode(101).bootAtTime(6000002);
 #t.getNode(102).bootAtTime(6000003);
 
 
 print "[Py] Running events..."
-for i in range(60000):
+for i in range(100000):
 	if i==25000:
-		t.getNode(1).turnOff();
-		print ("1 is off")
+		print ("1 and 3 are off")
+		#t.getNode(1).turnOff();
+		t.getNode(3).turnOff();
+
 
 	t.runNextEvent()
 

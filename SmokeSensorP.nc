@@ -2,12 +2,13 @@
 
 module SmokeSensorP {
 	provides interface SmokeSensor;
+	uses interface Random;
 }
 
 implementation {
 
 	command void SmokeSensor.getReading(){
-		uint16_t smokeValue = 10;
+		bool smokeValue = (call Random.rand16() % 100) < SMOKE_PROBABILITY;
 		signal 	SmokeSensor.doneReading(SUCCESS, smokeValue);
 	}
 }

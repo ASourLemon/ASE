@@ -20,6 +20,7 @@ implementation {
 	components SmokeSensorP;
 	components TemperatureSensorP;
 	components GpsSensorP;
+	components RandomC;
 
 	//***************//
 	//basic
@@ -39,4 +40,9 @@ implementation {
 	App.SmokeSensor -> SmokeSensorP;
 	App.TemperatureSensor -> TemperatureSensorP;
 	App.GpsSensor -> GpsSensorP;
+
+	HumiditySensorP.Random -> RandomC;	
+	SmokeSensorP.Random -> RandomC;
+	TemperatureSensorP.Random -> RandomC;
+	GpsSensorP.Random -> RandomC;
 }

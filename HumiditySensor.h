@@ -1,13 +1,11 @@
 #ifndef HUMIDITYSENSOR_H
 #define HUMIDITYSENSOR_H
 
-
-
-/*enum FIELD_DIMENSIONS{
+enum HUMIDITY_LIMITS{
 		
-	WIDTH = 1000,
-	HEIGHT = 1000
+	MAX_HUMIDITY = 100,
+	MIN_HUMIDITY = 0
 
-};*/
+};
  
 #endif
