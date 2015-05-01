@@ -32,13 +32,11 @@ implementation {
 
 	/*for sensor nodes*/
 	bool isRegistred = FALSE;
-	uint16_t x_coordinate;
-	uint16_t y_coordinate;
 	uint16_t myRoutingNode;		
 	uint16_t timeStamp=0;
-	uint16_t readTemperatureValue;
-	uint16_t readHumidityValue;
-	bool readSmokeValue;
+	uint16_t value1;		//humidity, x_gps
+	uint16_t value2;		//temperature, y_gps
+	bool value3;			//smoke value
 
 	/*for routing nodes*/
 	uint16_t numSensorNodes=0;
@@ -85,16 +83,16 @@ implementation {
 							call TemperatureSensor.getReading();
 							call SmokeSensor.getReading();
 							call HumiditySensor.getReading();
-							if(readSmokeValue){
+							if(value3){
 								btrpkt->opcode = EMERGENCY_OPCODE;			
 							}else {
 								btrpkt->opcode = ROUTE_OPCODE;
 							}
 							btrpkt->nodeid = TOS_NODE_ID;
 							btrpkt->rank = FORCE_ROOT_RANK;
-							btrpkt->value1 = readHumidityValue;
-							btrpkt->value2 = readSmokeValue;
-							btrpkt->value3 = readTemperatureValue;
+							btrpkt->value1 = value1;
+							btrpkt->value3 = value3;
+							btrpkt->value2 = value2;
 							btrpkt->measureTime = timeStamp;
 							timeStamp++;	
 						}else{
@@ -102,8 +100,8 @@ implementation {
 							btrpkt->opcode = REGISTER_GPS_OPCODE;
 							btrpkt->nodeid = TOS_NODE_ID;
 							btrpkt->rank = FORCE_ROOT_RANK;
-							btrpkt->value1 = x_coordinate;
-							btrpkt->value2 = y_coordinate;
+							btrpkt->value1 = value1;
+							btrpkt->value2 = value2;
 						}
 						if (call AMSend.send(myRoutingNode, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
 							isBusy = TRUE;
@@ -322,26 +320,26 @@ implementation {
 
 	event void HumiditySensor.doneReading(error_t err, uint16_t humidityValue){
 		if(err==SUCCESS){
-			readHumidityValue=humidityValue;		
+			value1=humidityValue;		
 		}
 	}
 
 	event void TemperatureSensor.doneReading(error_t err, uint16_t temperatureValue){
 		if(err==SUCCESS){
-			readTemperatureValue=temperatureValue;
+			value2=temperatureValue;
 		}
 	}
 
 	event void SmokeSensor.doneReading(error_t err, bool smokeValue){
 		if(err==SUCCESS){
-			readSmokeValue=smokeValue;	
+			value3=smokeValue;	
 		}
 	}
 
 	event void GpsSensor.receiveCoordinates(error_t err, uint16_t x, uint16_t y){
 		if(err==SUCCESS){
-			x_coordinate=x;
-			y_coordinate=y;
+			value1=x;
+			value2=y;
 		}		
 	}
 
