@@ -21,6 +21,10 @@ module FireDetectionC {
 
 }
 implementation {
+
+	#ifdef TOSSIM
+	FILE* file;
+	#endif
 	/*for all nodes*/
 	bool isBusy=FALSE;
 	bool isConnected=FALSE;
@@ -288,14 +292,20 @@ implementation {
 
 			}else if(IS_SERVERNODE(TOS_NODE_ID)){
 				if(btrpkt->opcode==ROUTE_OPCODE){
-					dbg("Debug", "Received reading %d from sensor %d\n", btrpkt->measureTime,  btrpkt->nodeid);	
-
+					dbg("Debug", "Received reading %d from sensor %d\n", btrpkt->measureTime, btrpkt->nodeid);	
+					file = fopen("output.txt", "a");
+					fprintf(file, "time:%d id:%d temperature:%d humidity:%d smoke:%d\n", 
+								btrpkt->measureTime, btrpkt->nodeid, btrpkt->value1, btrpkt->value2, btrpkt->value3);
+					fclose(file);
 				}else if(btrpkt->opcode==REGISTER_GPS_OPCODE){
 					dbg("Debug", "Received gps reg x:%d y:%d from sensor %d\n", btrpkt->value1, btrpkt->value2, btrpkt->nodeid);
 				
 				}else if(btrpkt->opcode==EMERGENCY_OPCODE){
 					dbg("Debug", "Received smoke %d from sensor %d\n", btrpkt->measureTime,  btrpkt->nodeid);	
-
+					file = fopen("output.txt", "a");
+					fprintf(file, "time:%d id:%d temperature:%d humidity:%d smoke:%d\n", 
+								btrpkt->measureTime, btrpkt->nodeid, btrpkt->value1, btrpkt->value2, btrpkt->value3);
+					fclose(file);
 				}else if(btrpkt->opcode==DISCOVER_OPCODE){
 
 					NetworkMsg* res = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
