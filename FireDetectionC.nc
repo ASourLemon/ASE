@@ -83,7 +83,7 @@ implementation {
 					if(!isWaitingAck){
 						NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
 						if(isRegistred){
-							dbg("Debug", "Send rmsg\n");	
+							//dbg("Debug", "Send rmsg\n");	
 							call TemperatureSensor.getReading();
 							call SmokeSensor.getReading();
 							call HumiditySensor.getReading();
@@ -131,7 +131,7 @@ implementation {
 
 				}else {
 					NetworkMsg* btrpkt = (NetworkMsg*)(call Packet.getPayload(&pkt, sizeof (NetworkMsg)));
-					dbg("Debug", "OMG halp me!\n");	
+					//dbg("Debug", "OMG halp me!\n");	
 					btrpkt->opcode = DISCOVER_OPCODE;
 					btrpkt->nodeid = TOS_NODE_ID;
 					if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
