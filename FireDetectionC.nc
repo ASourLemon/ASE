@@ -92,9 +92,9 @@ implementation {
 							}
 							btrpkt->nodeid = TOS_NODE_ID;
 							btrpkt->rank = FORCE_ROOT_RANK;
-							btrpkt->humidityValue = readHumidityValue;
-							btrpkt->smokeValue = readSmokeValue;
-							btrpkt->temperatureValue = readTemperatureValue;
+							btrpkt->value1 = readHumidityValue;
+							btrpkt->value2 = readSmokeValue;
+							btrpkt->value3 = readTemperatureValue;
 							btrpkt->measureTime = timeStamp;
 							timeStamp++;	
 						}else{
@@ -102,8 +102,8 @@ implementation {
 							btrpkt->opcode = REGISTER_GPS_OPCODE;
 							btrpkt->nodeid = TOS_NODE_ID;
 							btrpkt->rank = FORCE_ROOT_RANK;
-							btrpkt->x_gps_coordinate = x_coordinate;
-							btrpkt->y_gps_coordinate = y_coordinate;
+							btrpkt->value1 = x_coordinate;
+							btrpkt->value2 = y_coordinate;
 						}
 						if (call AMSend.send(myRoutingNode, &pkt, sizeof(NetworkMsg)) == SUCCESS) {			//FIXME: Change my size!
 							isBusy = TRUE;
@@ -211,9 +211,9 @@ implementation {
 								res->opcode = btrpkt->opcode;
 								res->nodeid = btrpkt->nodeid;
 								res->rank = myRank;
-								res->humidityValue = btrpkt->humidityValue;
-								res->smokeValue = btrpkt->smokeValue;
-								res->temperatureValue = btrpkt->temperatureValue;
+								res->value1 = btrpkt->value1;
+								res->value2 = btrpkt->value2;
+								res->value3 = btrpkt->value3;
 								res->measureTime = btrpkt->measureTime;
 								emergertMsg=pkt;
 								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
@@ -230,9 +230,9 @@ implementation {
 								res->opcode = btrpkt->opcode;
 								res->nodeid = btrpkt->nodeid;
 								res->rank = myRank;
-								res->humidityValue = btrpkt->humidityValue;
-								res->smokeValue = btrpkt->smokeValue;
-								res->temperatureValue = btrpkt->temperatureValue;
+								res->value1 = btrpkt->value1;
+								res->value2 = btrpkt->value2;
+								res->value3 = btrpkt->value3;
 								res->measureTime = btrpkt->measureTime;
 								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 									isBusy = TRUE;
@@ -247,9 +247,7 @@ implementation {
 								res->opcode = btrpkt->opcode;
 								res->nodeid = btrpkt->nodeid;
 								res->rank = myRank;
-								if(IS_SENSORNODE(btrpkt->nodeid)){
-									res->routingid = TOS_NODE_ID;
-								}else if(IS_ROUTINGNODE(btrpkt->nodeid)){
+								if(IS_ROUTINGNODE(btrpkt->nodeid)){
 									res->rank = myRank+1;
 									myRoutingNode = call AMPacket.source(msg);
 								}
@@ -269,8 +267,8 @@ implementation {
 								res->opcode = btrpkt->opcode;
 								res->nodeid = btrpkt->nodeid;
 								res->rank = myRank;
-								res->x_gps_coordinate = btrpkt->x_gps_coordinate;
-								res->y_gps_coordinate = btrpkt->y_gps_coordinate;
+								res->value1 = btrpkt->value1;
+								res->value2 = btrpkt->value2;
 								if (call AMSend.send(AM_BROADCAST_ADDR, &pkt, sizeof(NetworkMsg)) == SUCCESS) {	//FIXME: Change my size!
 									isBusy = TRUE;
 								}
@@ -295,7 +293,7 @@ implementation {
 					dbg("Debug", "Received reading %d from sensor %d\n", btrpkt->measureTime,  btrpkt->nodeid);	
 
 				}else if(btrpkt->opcode==REGISTER_GPS_OPCODE){
-					dbg("Debug", "Received gps reg x:%d y:%d from sensor %d\n", btrpkt->x_gps_coordinate, btrpkt->y_gps_coordinate, btrpkt->nodeid);
+					dbg("Debug", "Received gps reg x:%d y:%d from sensor %d\n", btrpkt->value1, btrpkt->value2, btrpkt->nodeid);
 				
 				}else if(btrpkt->opcode==EMERGENCY_OPCODE){
 					dbg("Debug", "Received smoke %d from sensor %d\n", btrpkt->measureTime,  btrpkt->nodeid);	
@@ -306,9 +304,7 @@ implementation {
 					res->opcode = btrpkt->opcode;
 					res->nodeid = btrpkt->nodeid;
 
-					if(IS_SENSORNODE(btrpkt->nodeid)){
-						res->routingid = TOS_NODE_ID;
-					}else if(IS_ROUTINGNODE(btrpkt->nodeid)){
+					if(IS_ROUTINGNODE(btrpkt->nodeid)){
 						res->rank = myRank+1;
 					}
 

@@ -27,17 +27,11 @@ typedef nx_struct NetworkMsg {
 	nx_uint16_t nodeid;
 	nx_uint8_t rank;
 
-	nx_uint16_t routingid;
+	nx_uint16_t value1;		//humidity, x_gps
+	nx_uint16_t value2;		//temperature, y_gps
+	nx_uint8_t value3;		//smoke value
 
-	nx_uint16_t humidityValue;
-
-	nx_uint16_t temperatureValue;
 	nx_uint16_t measureTime;
-
-	nx_uint16_t x_gps_coordinate;
-	nx_uint16_t y_gps_coordinate;
-
-	nx_uint8_t smokeValue;
 
 } NetworkMsg;
  
