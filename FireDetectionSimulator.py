@@ -39,7 +39,6 @@ for i in range(100, int(nSensorNodes) + 1):
 
 print "[Py] Creating channels..."
 t.addChannel("Debug", sys.stdout)
-#t.addChannel("Counter", sys.stdout)
 
 
 print "[Py] Booting nodes..."
